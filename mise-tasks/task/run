@@ -13,14 +13,18 @@ task_prompt="$2"
 base_branch="${3:-}"
 
 # Slug of the prompt makes the id (and the branch/PR/dir names built from
-# it) readable and tab-completable instead of an opaque timestamp+PID; the
-# trailing timestamp keeps ids unique and sortable. Lowercase alnum + dashes
-# only, and starting with an alnum, so it's also valid as a docker compose
-# project name.
+# it, plus every log line via entrypoint.sh's log()) readable and
+# tab-completable instead of an opaque timestamp+PID; the trailing timestamp
+# keeps ids unique and sortable. Capped at 5 words (not raw characters) so
+# it stays a short hint rather than echoing the whole prompt, and never cuts
+# a word in half. Lowercase alnum + dashes only, and starting with an alnum,
+# so it's also valid as a docker compose project name; cut -c1-40 is just a
+# safety net against one pathological word with no separators.
 prompt_slug="$(printf '%s' "$task_prompt" \
   | tr '[:upper:]' '[:lower:]' \
   | tr -s '[:space:]' '-' \
   | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//' \
+  | cut -d- -f1-5 \
   | cut -c1-40)"
 prompt_slug="${prompt_slug%-}"
 task_id="${prompt_slug:-task}-$(date +%Y%m%d-%H%M%S)"
