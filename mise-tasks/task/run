@@ -15,6 +15,12 @@ base_branch="${3:-}"
 task_id="$(date +%Y%m%d%H%M%S)-$$"
 out_dir="$(pwd)/runs/${task_id}"
 mkdir -p "$out_dir"
+# The task container's `agent` user (uid 1000, baked into the image) almost
+# never matches the host uid that created this dir (e.g. `rbox`), so without
+# this the bind-mounted /home/agent/output is unwritable from inside the
+# container. Fine to open up: this dir is per-task, gitignored, and holds
+# only that task's own JSON output.
+chmod 777 "$out_dir"
 
 echo "task ${task_id}: ${target_repo} <- ${task_prompt@Q}" >&2
 echo "output: ${out_dir}" >&2
