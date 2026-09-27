@@ -12,7 +12,17 @@ target_repo="$1"
 task_prompt="$2"
 base_branch="${3:-}"
 
-task_id="$(date +%Y%m%d%H%M%S)-$$"
+# Slug of the prompt makes the id (and the branch/PR/dir names built from
+# it) readable and tab-completable instead of an opaque timestamp+PID; the
+# trailing timestamp keeps ids unique and sortable. Lowercase alnum + dashes
+# only, and starting with an alnum, so it's also valid as a docker compose
+# project name.
+prompt_slug="$(printf '%s' "$task_prompt" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+  | cut -c1-40)"
+prompt_slug="${prompt_slug%-}"
+task_id="${prompt_slug:-task}-$(date +%Y%m%d-%H%M%S)"
 out_dir="$(pwd)/runs/${task_id}"
 mkdir -p "$out_dir"
 # The task container's `agent` user (uid 1000, baked into the image) almost
