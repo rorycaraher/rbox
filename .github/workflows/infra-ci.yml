@@ -43,6 +43,10 @@ jobs:
           # The base to diff each SOPS file's content against -- the PR's
           # base SHA, or the SHA before this push. Falls back to HEAD
           # (comparing the checked-out commit against itself, a no-op)
-          # for workflow_dispatch, where neither is defined.
-          SOPS_METADATA_CHECK_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # for workflow_dispatch (where neither is defined) and for a
+          # push whose `before` is the all-zeros SHA (GitHub's signal
+          # that it couldn't resolve a real previous ref, e.g. a
+          # force-push/history rewrite) -- there's no meaningful base to
+          # diff against either way.
+          SOPS_METADATA_CHECK_BASE: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || '' }}
         run: mise exec -- pre-commit run --all-files --show-diff-on-failure
