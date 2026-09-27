@@ -65,6 +65,14 @@ CI (tests, lint) runs against it like any other PR, human approval.
 
 ## Future ideas (not scheduled)
 
+- **Meaningful task/branch names**: task ids are a plain timestamp for now
+  (POC-scoped) and nothing derived from the prompt feeds into branch names,
+  commit messages, or PR titles — the prompt is only ever used as the
+  prompt. Once tasks are triggered from a Jira ticket/GitHub issue/etc
+  rather than typed ad hoc, key the task id and branch name off that
+  ticket/issue identifier instead (e.g. `rbox/task-JIRA-123` or
+  `rbox/task-gh-456`) so they're meaningful without reconstructing anything
+  from free text.
 - **Scale out**: dispatcher + worker fleet — a simple queue or polled task
   table, workers that are just the Docker-per-task pattern replicated
   across boxes or Kubernetes jobs, central tracking of task state/diffs/cost
