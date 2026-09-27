@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Disable root SSH login and password auth on the task host, restricting SSH to the key-only 'user' account (idempotent). Run only after confirming 'mise run ssh' + 'sudo -u rbox' work -- see RUNBOOK.md step 8."
+set -euo pipefail
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$script_dir/../../infra"
+
+remote_script="$script_dir/lib/harden-ssh.sh"
+cmd='ssh -i ~/.ssh/rbox-task-host_ed25519 "root@$RBOX_TAILSCALE_IP" bash -s'
+
+echo "Hardening sshd on the task host (disabling root login + password auth)..." >&2
+echo "This assumes 'mise run ssh' + 'sudo -u rbox' already work. Ctrl-C now if not." >&2
+exec sops exec-env secrets.enc.yaml "$cmd" <"$remote_script"

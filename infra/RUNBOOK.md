@@ -126,12 +126,20 @@ Commit `infra/secrets.enc.yaml` — it's ciphertext, safe in the repo. Never
 commit `infra/secrets.yaml` (the task removes it after encrypting, but it's
 also gitignored as a backstop).
 
-## 8. First apply, then bootstrap Tailscale, then close the firewall
+## 8. First apply, then bootstrap the host, then close the firewall
 
 There's no static IP or bastion here, so steady-state SSH access happens
 over [Tailscale](https://tailscale.com/) (outbound-only from the box — no
-inbound port ever needed once it's joined), not an IP allowlist. Getting
-there takes three passes:
+inbound port ever needed once it's joined), not an IP allowlist. And
+steady-state SSH logs in as `user`, a non-root, key-only login account
+created below — never `root`, and never `rbox` either: `rbox` is a
+separate, non-SSH-loginable account that actually holds the `docker` group
+membership and runs task workloads, reached only via `sudo -u rbox` from a
+`user` session. Splitting login from docker-capable is what makes "least
+privilege" real here — see `mise-tasks/host/lib/bootstrap-docker.sh` for
+the full reasoning. Getting there takes several passes, all within the one
+temporary firewall opening from step (a), so there's only ever one window
+where the public IP is reachable at all:
 
 **a. First apply, with a temporary opening.** `bootstrap_ssh_cidrs` defaults
 to `[]` (fully closed) — for this one apply only, override it with your
@@ -168,7 +176,69 @@ sops infra/secrets.enc.yaml   # opens $EDITOR on the decrypted contents; add:
                               # save and quit — sops re-encrypts on write
 ```
 
-**c. Close the firewall.** Back on your machine, re-apply with no override
+Stay in the root SSH session from this step — the next two steps still need
+it.
+
+**c. Install Docker and create the `user`/`rbox` accounts.** From your
+machine (not the SSH session):
+
+```sh
+mise run host:bootstrap
+```
+
+This connects as `root@$RBOX_TAILSCALE_IP` and, idempotently: installs
+Docker Engine + the Compose plugin from Docker's official apt repo, creates
+two accounts, and copies root's `authorized_keys` to `user` so it accepts
+the same dedicated key from step 4:
+
+- `rbox` — added to the `docker` group, no password, **no SSH key at all**.
+  This is what actually runs `docker compose`/task workloads.
+- `user` — password login disabled, gets root's `authorized_keys`, and a
+  narrow `/etc/sudoers.d` grant: `user ALL=(rbox) NOPASSWD: ALL`. That's
+  scoped to *becoming rbox*, not becoming root — a typo'd `sudo <cmd>`
+  lands as rbox's uid, not root's. This is what you actually SSH into.
+
+See `mise-tasks/host/lib/bootstrap-docker.sh` for exactly what runs, and
+the file for the caveat that `docker` group membership is host-root-
+equivalent regardless of which account holds it — this split narrows
+operator-mistake blast radius, it isn't a sandbox against someone who
+already holds the SSH key.
+
+**d. Verify the split works — before touching sshd.** In a *second*
+terminal, leaving the root session from step (b) open in the first:
+
+```sh
+mise run ssh                                   # now connects as user@$RBOX_TAILSCALE_IP
+docker ps                                      # should FAIL -- user has no docker group membership
+sudo -u rbox docker run --rm hello-world       # should succeed -- confirms the rbox account works
+```
+
+Don't proceed to (e) until both the failure and the success happen as
+expected. If something's wrong, you still have the root session open in
+the first terminal to fix it and re-run `mise run host:bootstrap` (it's
+idempotent).
+
+**e. Harden sshd: disable root login and password auth.** Only once (d) is
+confirmed:
+
+```sh
+mise run host:harden-ssh
+```
+
+This writes `PermitRootLogin no`, `PasswordAuthentication no`, and
+`AllowUsers user` to an sshd drop-in, runs `sshd -t` to validate the config
+before reloading, then reloads sshd. Existing connections (your still-open
+root session) aren't killed by this — only new ones are affected — so
+immediately verify in a *third*, fresh attempt:
+
+```sh
+mise run ssh              # should still work — user, key-only
+ssh root@<server_ipv4>    # should now be refused
+```
+
+Only after that succeeds should you close the root session from step (b).
+
+**f. Close the firewall.** Back on your machine, re-apply with no override
 (picks the `bootstrap_ssh_cidrs = []` default back up), which drops the
 temporary rule and denies all inbound from the public internet again:
 
@@ -184,7 +254,12 @@ mise run tofu:plan
 mise run tofu:apply
 ```
 
-Connect from now on over Tailscale, not the public IP:
+Connect from now on over Tailscale as `user`, never as `root` — and use
+`sudo -u rbox <cmd>` for anything docker-related once you're in (e.g.
+`sudo -u rbox docker ps`). Whether `task:run` itself runs on this host at
+all, and how the repo/`mise`/secrets get there for `rbox` to use, isn't
+resolved by this step — see `task/README.md` and PLAN.md for where that
+stands:
 
 ```sh
 mise run ssh
