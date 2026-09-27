@@ -1,0 +1,35 @@
+name: infra-ci
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "mise.toml"
+      - "mise-tasks/**"
+      - ".pre-commit-config.yaml"
+      - ".sops.yaml"
+      - "scripts/**"
+      - ".github/workflows/infra-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+  workflow_dispatch: {}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the exact versions pinned in mise.toml (opentofu, tflint,
+      # gitleaks, sops, age, pre-commit) — same tool versions as local dev.
+      - uses: jdx/mise-action@v2
+
+      # Same hooks as `pre-commit install` runs locally: tofu fmt, tofu
+      # validate (init with -backend=false — no Hetzner/R2 credentials ever
+      # touch CI), tflint, gitleaks, and the SOPS-encryption check. One
+      # config drives both, so there's no separate list of checks to keep
+      # in sync.
+      - name: pre-commit
+        run: mise exec -- pre-commit run --all-files --show-diff-on-failure

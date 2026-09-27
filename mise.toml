@@ -1,0 +1,10 @@
+[tools]
+# pinned mainly so pre-commit builds its hook virtualenvs with a modern
+# Python instead of falling back to the OS's own (often stale) python3
+python = "3.12"
+opentofu = "1.12"
+sops = "latest"
+age = "latest"
+tflint = "latest"
+gitleaks = "latest"
+pre-commit = "latest"

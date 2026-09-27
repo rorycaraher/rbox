@@ -1,0 +1,11 @@
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# plaintext secrets staging — only secrets.enc.yaml (ciphertext) is ever committed
+secrets.yaml
+secrets.dec.yaml
+*.decrypted.yaml

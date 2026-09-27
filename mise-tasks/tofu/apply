@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="tofu apply, with secrets decrypted into the process env via sops exec-env"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../../infra"
+
+cmd="tofu apply"
+for a in "$@"; do cmd+=" $(printf '%q' "$a")"; done
+exec sops exec-env secrets.enc.yaml "$cmd"

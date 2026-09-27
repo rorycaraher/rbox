@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Temporarily open SSH to this machine's current IP and apply, so Tailscale can be installed on a fresh box"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../../infra"
+
+ip="$(curl -s https://ifconfig.me)"
+echo "Temporarily opening SSH to ${ip}/32 (revert with: mise run tofu:apply)" >&2
+
+cmd="tofu apply -var=$(printf '%q' "bootstrap_ssh_cidrs=[\"${ip}/32\"]")"
+exec sops exec-env secrets.enc.yaml "$cmd"
