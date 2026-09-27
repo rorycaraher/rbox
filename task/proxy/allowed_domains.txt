@@ -4,8 +4,12 @@
 # deliberately generic — this is the concrete list). Keep it as narrow as
 # the tasks you're actually running allow.
 
-# Anthropic API (claude -p itself)
+# Anthropic API (claude -p itself, and opencode's Anthropic provider)
 .anthropic.com
+
+# opencode fetches its model/provider metadata from here on every run,
+# even for a single `opencode run` — needed whenever AGENT=opencode
+models.dev
 
 # GitHub: clone/push over HTTPS, `gh pr create`, release/archive downloads
 github.com

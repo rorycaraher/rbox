@@ -1,28 +1,43 @@
 # task
 
-Docker-per-task: the actual thing that runs a single headless Claude Code
+Docker-per-task: the actual thing that runs a single headless coding-agent
 session in an ephemeral, network-restricted container and opens a PR if it
-produced changes. See [`../PLAN.md`](../PLAN.md) Phase 1 for the rationale.
-This is triggered manually, by a human, same as `tofu apply` — nothing here
-auto-merges or auto-triggers itself.
+produced changes. Either **claude** (Claude Code) or **opencode** can run
+the task — see "Choosing an agent" below; they're never run in parallel,
+just picked per invocation. See [`../PLAN.md`](../PLAN.md) Phase 1 for the
+rationale. This is triggered manually, by a human, same as `tofu apply` —
+nothing here auto-merges or auto-triggers itself.
 
 ## Layout
 
-- `Dockerfile`, `entrypoint.sh`, `settings.json` — the task container. Clones
-  the target repo over HTTPS with a short-lived token, runs
-  `claude -p --dangerously-skip-permissions`, and if the working tree changed,
-  pushes a branch and opens a PR via `gh`. Runs as a non-root user.
+- `Dockerfile`, `entrypoint.sh` — the task container. Both `claude` and
+  `opencode` CLIs are installed in the same image; `entrypoint.sh` branches
+  on `$AGENT` to pick which one actually runs. Clones the target repo over
+  HTTPS with a short-lived token, runs the chosen agent non-interactively
+  (`claude -p --dangerously-skip-permissions` or `opencode run --auto`), and
+  if the working tree changed, pushes a branch and opens a PR via `gh`. Runs
+  as a non-root user.
+- `settings.json` / `opencode-settings.json` — each agent's own
+  confirmation-bypass-is-off-so-deny-list-is-what-matters config.
   `settings.json` is loaded from `CLAUDE_CONFIG_DIR` (outside the cloned
   repo) and carries a `permissions.deny` list — `deny` is what's actually
-  doing anything here, since `allow` prompts are already skipped by
-  `--dangerously-skip-permissions`.
+  doing anything there, since `allow` prompts are already skipped by
+  `--dangerously-skip-permissions`. `opencode-settings.json` is copied to
+  `/etc/opencode/opencode.json`, opencode's root-owned "managed config" tier
+  — opencode's normal precedence lets a *project*-level `opencode.json` in
+  the cloned repo win over the global config, so `/etc/opencode/` (one tier
+  above that) is what keeps the target repo's own content from loosening its
+  `permission.bash`/`permission.read` deny rules. `--auto` auto-approves
+  everything *not* explicitly denied, so those deny rules are the real
+  enforcement there too.
 - `proxy/` — a Squid forward proxy the task container is forced through
   (`HTTP_PROXY`/`HTTPS_PROXY`, and no other route out — see `compose.yml`'s
   network shape). Allowlists domains by TLS SNI via `ssl_bump peek`+`splice`,
   never decrypting traffic. The allowed list is
-  `proxy/allowed_domains.txt` — Anthropic, GitHub, and the common package
-  registries by default; edit it for what a given repo's build actually
-  needs.
+  `proxy/allowed_domains.txt` — Anthropic, `models.dev` (opencode fetches
+  model/provider metadata from there on every run), GitHub, and the common
+  package registries by default; edit it for what a given repo's build
+  actually needs.
 - `compose.yml` — wires `task` and `proxy` together. `task` sits on an
   `internal: true` network with no route to the internet at all; `proxy` is
   dual-homed onto that network and a normal one. That's the actual egress
@@ -37,6 +52,21 @@ auto-merges or auto-triggers itself.
   both down (`down -v`) when it exits, and writes result JSON / the PR URL
   to `task/runs/<task-id>/` (gitignored).
 
+## Choosing an agent
+
+Set `AGENT=claude` (the default) or `AGENT=opencode` before `mise run
+task:run` to pick which CLI actually runs the task — both are baked into
+the same image, so switching is just an env var, no rebuild:
+
+```sh
+mise run task:run <owner/repo> "<prompt>"                    # AGENT defaults to claude
+AGENT=opencode mise run task:run <owner/repo> "<prompt>"     # try opencode instead
+```
+
+`opencode` currently only supports `ANTHROPIC_API_KEY` auth here (no
+subscription-OAuth path wired up — see prerequisite 2 below), and ignores
+`MAX_TURNS` (no equivalent flag in `opencode run` today).
+
 ## Prerequisites
 
 1. Docker installed on wherever this runs (the task host, or your own
@@ -48,27 +78,31 @@ auto-merges or auto-triggers itself.
    curl -fsSL https://get.docker.com | sh
    ```
 
-2. `claude -p` auth: set **one** of `ANTHROPIC_API_KEY` or
-   `CLAUDE_CODE_OAUTH_TOKEN` (`entrypoint.sh` requires at least one, and
-   `claude` itself picks whichever is present).
-   - `ANTHROPIC_API_KEY` — pay-per-token, from console.anthropic.com.
-   - `CLAUDE_CODE_OAUTH_TOKEN` — bills against a Claude **Pro/Max/Team/
-     Enterprise subscription** instead of API credits. Generate it on a
-     machine with a browser (your laptop, not the headless task host —
-     there's no browser there to complete the OAuth flow):
+2. Agent auth:
+   - `AGENT=opencode`: set `ANTHROPIC_API_KEY` (pay-per-token, from
+     console.anthropic.com). That's the only credential `entrypoint.sh`
+     wires up for opencode right now.
+   - `AGENT=claude` (default): set **one** of `ANTHROPIC_API_KEY` or
+     `CLAUDE_CODE_OAUTH_TOKEN` (`entrypoint.sh` requires at least one, and
+     `claude` itself picks whichever is present).
+     - `ANTHROPIC_API_KEY` — pay-per-token, from console.anthropic.com.
+     - `CLAUDE_CODE_OAUTH_TOKEN` — bills against a Claude **Pro/Max/Team/
+       Enterprise subscription** instead of API credits. Generate it on a
+       machine with a browser (your laptop, not the headless task host —
+       there's no browser there to complete the OAuth flow):
 
-     ```sh
-     claude setup-token
-     ```
+       ```sh
+       claude setup-token
+       ```
 
-     This prints a token, valid for about a year. Two things worth knowing
-     before relying on it for unattended runs: it authenticates as *your*
-     account, so every task container shares your normal Pro/Max rate
-     limit/weekly usage cap rather than getting its own budget — a task can
-     stall mid-run if you hit that cap doing other things the same week;
-     and when it does expire, headless runs will just start failing with an
-     auth error until you re-run `claude setup-token` and update the secret
-     below. There's no email/warning ahead of expiry.
+       This prints a token, valid for about a year. Two things worth knowing
+       before relying on it for unattended runs: it authenticates as *your*
+       account, so every task container shares your normal Pro/Max rate
+       limit/weekly usage cap rather than getting its own budget — a task can
+       stall mid-run if you hit that cap doing other things the same week;
+       and when it does expire, headless runs will just start failing with an
+       auth error until you re-run `claude setup-token` and update the secret
+       below. There's no email/warning ahead of expiry.
 
    Add whichever one you're using the same way `RBOX_TAILSCALE_IP` was
    added: `sops infra/secrets.enc.yaml`, edit, save.
@@ -93,7 +127,8 @@ Each run builds fresh images (no stale task state carried between runs),
 runs the container, and tears the whole compose project down on exit
 whether it succeeded or not. Check `task/runs/<task-id>/`:
 
-- `result.json` — full `claude -p --output-format json` output (cost,
+- `result.json` — full JSON output from whichever agent ran
+  (`claude -p --output-format json`, or `opencode run --format json`; cost,
   turns, the works — see PLAN.md's Observability section; this is the
   closest thing to a log a headless run has right now, short of wiring real
   OTel export).

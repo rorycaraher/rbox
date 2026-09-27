@@ -27,6 +27,7 @@ services:
       - TASK_PROMPT
       - PR_TITLE
       - BASE_BRANCH
+      - AGENT
       - MAX_TURNS
       - GITHUB_TOKEN
       - ANTHROPIC_API_KEY

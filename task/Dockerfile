@@ -1,6 +1,7 @@
-# Per-task Claude Code sandbox (PLAN.md Phase 1). Built fresh, runs exactly
-# one task, then the container is discarded — the image itself carries no
-# task-specific state or credentials.
+# Per-task headless coding-agent sandbox (PLAN.md Phase 1). Built fresh,
+# runs exactly one task with either claude or opencode (picked via $AGENT,
+# see entrypoint.sh), then the container is discarded — the image itself
+# carries no task-specific state or credentials.
 FROM node:22-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,14 +19,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code opencode-ai
 
-# Non-root: --dangerously-skip-permissions removes Claude Code's own
-# confirmation prompts, so container-level isolation (this user, the
-# egress-allowlist proxy, the ephemeral filesystem) is what's left standing
-# in for the human checkpoint that exists in an interactive session. Root
-# inside the container would give a compromised/misdirected task more than
-# it needs even though the container itself is disposable.
+# opencode's own permission enforcement: /etc/opencode/ is its
+# highest-priority "managed config" tier. Unlike Claude's CLAUDE_CONFIG_DIR
+# trick, opencode's normal precedence has a *project*-level opencode.json
+# (i.e. one checked into the cloned target repo) win over the global
+# config — /etc/opencode/ is the one tier above that, so the target repo's
+# own content still can't loosen it. Copied while still root so the
+# non-root `agent` user below can't rewrite it either.
+COPY opencode-settings.json /etc/opencode/opencode.json
+
+# Non-root: --dangerously-skip-permissions (claude) / --auto (opencode)
+# remove each CLI's own confirmation prompts, so container-level isolation
+# (this user, the egress-allowlist proxy, the ephemeral filesystem) is what's
+# left standing in for the human checkpoint that exists in an interactive
+# session. Root inside the container would give a compromised/misdirected
+# task more than it needs even though the container itself is disposable.
 RUN useradd --create-home --shell /bin/bash agent
 USER agent
 WORKDIR /home/agent
