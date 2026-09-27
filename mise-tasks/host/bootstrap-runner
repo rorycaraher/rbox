@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Install git/mise for the 'rbox' runner account, clone rbox into its home, and generate its own age keypair for decrypting secrets (idempotent; connects as root over Tailscale; run only after host:bootstrap)."
+set -euo pipefail
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$script_dir/../../infra"
+
+remote_script="$script_dir/lib/bootstrap-runner.sh"
+cmd='ssh -i ~/.ssh/rbox-task-host_ed25519 "root@$RBOX_TAILSCALE_IP" bash -s'
+
+echo "Setting up the rbox task-runner account (mise, rbox's own checkout + age key)..." >&2
+exec sops exec-env secrets.enc.yaml "$cmd" <"$remote_script"

@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Infra for running Claude Code **headlessly** on owned infrastructure (a
 single Hetzner VPS to start) instead of interactively on a laptop, one
 Docker container per task. See `PLAN.md` for the phased roadmap (Phase 1:
-single VPS, Docker-per-task — what's built now; Phase 2: CI-triggered
-runs; Phase 3: scale-out fleet — not built yet) and open cross-cutting
-concerns.
+single VPS, Docker-per-task — infra and images built, first end-to-end run
+still pending; Phase 2: CI-triggered runs — not built yet) and open
+cross-cutting concerns. See `POC-RUNBOOK.md` for the step-by-step first run.
 
 Two independent pieces live here:
 
@@ -33,6 +33,7 @@ mise run tofu:bootstrap                                    # one-time host boots
 mise run tofu:fmt
 mise run secrets:encrypt                                   # infra/secrets.yaml -> secrets.enc.yaml, removes plaintext
 mise run host:bootstrap                                    # one-time: install Docker + create user/rbox accounts (already done)
+mise run host:bootstrap-runner                              # one-time: give rbox mise/git/its own checkout + age key (human-run only)
 mise run host:harden-ssh                                   # one-time: disable root/password SSH login (already done)
 mise run ssh                                                # SSH to the task host over Tailscale, as `user`
 mise run task:build                                         # build task+proxy images, no secrets, no run
@@ -57,9 +58,10 @@ There is no test suite; this is infra config, not application code.
 - **Never auto-merge, and never run `mise run task:run`, `git push`, or
   `gh pr` commands yourself.** Task runs and their resulting PRs are
   triggered manually by a human; nothing in this repo self-triggers.
-- **Never run `mise run host:bootstrap` or `mise run host:harden-ssh`
-  yourself.** Both mutate the live task host over SSH (installing
-  packages, creating the `user`/`rbox` accounts, and — for `harden-ssh` —
+- **Never run `mise run host:bootstrap`, `host:bootstrap-runner`, or
+  `host:harden-ssh` yourself.** All three mutate the live task host over
+  SSH (installing packages, creating the `user`/`rbox` accounts,
+  provisioning `rbox`'s own checkout/age key, and — for `harden-ssh` —
   disabling root/password SSH login). Same category as `tofu apply`: a
   human runs these by hand, watching the output, with a second terminal
   open to verify before the next step. Stop at the code/script change and
@@ -86,7 +88,11 @@ There is no test suite; this is infra config, not application code.
 - Docker itself and two host accounts are provisioned outside tofu, over
   SSH, by `mise run host:bootstrap` and `mise run host:harden-ssh`
   (`mise-tasks/host/`, scripts in `mise-tasks/host/lib/`) — a one-time
-  bootstrap already done for the current host. Login and docker-capable
+  bootstrap already done for the current host. `mise run host:bootstrap-runner`
+  is a separate, later one-time step that gives `rbox` what it needs to
+  drive `mise run task:run` on the VPS itself — git, mise (and, via this
+  repo's own `mise.toml`, sops/age), a checkout of this repo, and its own
+  age keypair (see the secrets bullet below). Login and docker-capable
   are deliberately different accounts:
   - `user` — the SSH login account (key-only, password disabled). Not in
     the `docker` group.
@@ -108,9 +114,12 @@ There is no test suite; this is infra config, not application code.
   — see `infra/README.md` prerequisites.
 - Secrets (`HCLOUD_TOKEN`, R2 access key pair, `RBOX_TAILSCALE_IP`, and the
   task-container secrets below) all live SOPS-encrypted in one file,
-  `infra/secrets.enc.yaml`, keyed by an age recipient in `.sops.yaml`. Every
-  mise-task that needs them decrypts via `sops exec-env` into the child
-  process's environment only.
+  `infra/secrets.enc.yaml`. `.sops.yaml` lists the age recipients allowed to
+  decrypt it — normally just your laptop's key, plus (once
+  `host:bootstrap-runner` has run) a second recipient: an age keypair
+  generated on the VPS itself, so `rbox` can decrypt secrets there without
+  ever holding your laptop's private key. Every mise-task that needs them
+  decrypts via `sops exec-env` into the child process's environment only.
 
 ### `task/` — the Docker-per-task sandbox
 
