@@ -1,0 +1,10 @@
+# OS/editor cruft
+.DS_Store
+.idea/
+.vscode/
+
+# mise-managed tool installs, if ever run without the shims
+.mise-*.local.toml
+
+# per-directory ignores (terraform state/vars, task run output, etc.) live
+# in infra/.gitignore and task/.gitignore

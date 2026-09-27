@@ -1,8 +1,7 @@
 # One domain (or .suffix wildcard) per line, matched against the TLS SNI
 # for HTTPS and the Host header for plain HTTP. Edit to add whatever a
-# given repo's install/build actually needs (PLAN.md: "package registry" is
-# deliberately generic — this is the concrete list). Keep it as narrow as
-# the tasks you're actually running allow.
+# given repo's install/build actually needs. Keep it as narrow as the
+# tasks you're actually running allow.
 
 # Anthropic API (claude -p itself, and opencode's Anthropic provider)
 .anthropic.com

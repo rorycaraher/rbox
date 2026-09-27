@@ -45,7 +45,7 @@ passwd -l "$RUNNER_USER" >/dev/null
 # Not in the docker group, no password -- authenticates with the same SSH
 # key already authorized for root. sshd itself doesn't get locked down to
 # key-only/non-root until ../harden-ssh, run as a separate, deliberate step
-# once this account is confirmed working (see RUNBOOK.md step 8).
+# once this account is confirmed working.
 if ! id -u "$LOGIN_USER" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$LOGIN_USER"
 fi

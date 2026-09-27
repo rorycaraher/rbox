@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Disable root SSH login and password auth on the task host, restricting SSH to the key-only 'user' account (idempotent). Run only after confirming 'mise run ssh' + 'sudo -u rbox' work -- see RUNBOOK.md step 8."
+#MISE description="Disable root SSH login and password auth on the task host, restricting SSH to the key-only 'user' account (idempotent). Run only after confirming 'mise run ssh' + 'sudo -u rbox' work."
 set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 cd "$script_dir/../../infra"

@@ -12,10 +12,9 @@ resource "hcloud_firewall" "main" {
   #
   # bootstrap_ssh_cidrs exists only to get Tailscale installed on a fresh
   # box: set it to your current IP, apply, install+auth Tailscale over that
-  # temporary opening, then set it back to [] and re-apply. See
-  # RUNBOOK.md step 8. This does not restrict egress — allowlisting
-  # container egress to Anthropic/GitHub/the package registry stays a
-  # separate, still-open problem (see PLAN.md).
+  # temporary opening, then set it back to [] and re-apply. This does not
+  # restrict egress — allowlisting container egress to Anthropic/GitHub/the
+  # package registry stays a separate, still-open problem.
   dynamic "rule" {
     for_each = length(var.bootstrap_ssh_cidrs) > 0 ? [1] : []
     content {

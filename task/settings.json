@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "_comment": "Loaded via CLAUDE_CONFIG_DIR, outside the cloned repo, so the task can't override its own restrictions. `deny` entries are enforced unconditionally, unlike `allow` — this container also runs with --dangerously-skip-permissions, which is exactly why `deny` (a hard stop) rather than `allow` (a prompt that flag already skips) is the layer doing real work here. See PLAN.md Phase 1.",
+  "_comment": "Loaded via CLAUDE_CONFIG_DIR, outside the cloned repo, so the task can't override its own restrictions. `deny` entries are enforced unconditionally, unlike `allow` — this container also runs with --dangerously-skip-permissions, which is exactly why `deny` (a hard stop) rather than `allow` (a prompt that flag already skips) is the layer doing real work here.",
   "permissions": {
     "deny": [
       "Bash(sudo:*)",

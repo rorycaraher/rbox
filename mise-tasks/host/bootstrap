@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Install Docker and create the 'user' (SSH login) / 'rbox' (docker runner) accounts on the task host (idempotent; connects as root over Tailscale). See RUNBOOK.md step 8."
+#MISE description="Install Docker and create the 'user' (SSH login) / 'rbox' (docker runner) accounts on the task host (idempotent; connects as root over Tailscale)."
 set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 cd "$script_dir/../../infra"

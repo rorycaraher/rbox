@@ -1,6 +1,6 @@
 # One task = one `docker compose -p <task id> up`, then `down -v` tears the
 # whole thing (container, both networks) back out. See
-# ../mise-tasks/task/run, and PLAN.md Phase 1 ("Docker-per-task").
+# ../mise-tasks/task/run.
 #
 # Network shape is how egress gets locked down without touching host
 # iptables: `internal` has no route to the internet at all, so `task` (the

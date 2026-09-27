@@ -1,5 +1,5 @@
 variable "bootstrap_ssh_cidrs" {
-  description = "Temporary public SSH allowlist, used only to install Tailscale on a fresh box. Defaults closed — set to your current IP for the bootstrap apply, then revert to [] and re-apply. See RUNBOOK.md step 8."
+  description = "Temporary public SSH allowlist, used only to install Tailscale on a fresh box. Defaults closed — set to your current IP for the bootstrap apply, then revert to [] and re-apply."
   type        = list(string)
   default     = []
 }

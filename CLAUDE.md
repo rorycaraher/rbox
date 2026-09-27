@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Infra for running Claude Code **headlessly** on owned infrastructure (a
 single Hetzner VPS to start) instead of interactively on a laptop, one
-Docker container per task. See `PLAN.md` for the full rationale and phased
-roadmap (Phase 1: single VPS, Docker-per-task — what's built now; Phase 2:
-CI-triggered runs; Phase 3: scale-out fleet — not built yet).
+Docker container per task. See `PLAN.md` for the phased roadmap (Phase 1:
+single VPS, Docker-per-task — what's built now; Phase 2: CI-triggered
+runs; Phase 3: scale-out fleet — not built yet) and open cross-cutting
+concerns.
 
 Two independent pieces live here:
 
@@ -28,11 +29,11 @@ read one directly to see exactly what it runs.
 mise run tofu:init                                        # human-run only
 mise run tofu:plan                                         # human-run only
 mise run tofu:apply                                        # human-run only
-mise run tofu:bootstrap                                    # one-time: temp-open SSH, apply, see RUNBOOK.md step 8
+mise run tofu:bootstrap                                    # one-time host bootstrap (already done; human-run only)
 mise run tofu:fmt
 mise run secrets:encrypt                                   # infra/secrets.yaml -> secrets.enc.yaml, removes plaintext
-mise run host:bootstrap                                    # one-time: install Docker + create user/rbox accounts, see RUNBOOK.md step 8
-mise run host:harden-ssh                                   # one-time: disable root/password SSH login, see RUNBOOK.md step 8
+mise run host:bootstrap                                    # one-time: install Docker + create user/rbox accounts (already done)
+mise run host:harden-ssh                                   # one-time: disable root/password SSH login (already done)
 mise run ssh                                                # SSH to the task host over Tailscale, as `user`
 mise run task:build                                         # build task+proxy images, no secrets, no run
 mise run task:run <owner/repo> "<prompt>" [base_branch]     # run one headless task
@@ -77,15 +78,16 @@ There is no test suite; this is infra config, not application code.
   that denies all inbound by default (`main.tf`). Steady-state SSH is over
   Tailscale (outbound-only from the box); `bootstrap_ssh_cidrs` is a
   temporary, normally-empty variable used only once to install Tailscale
-  over a briefly-opened port (`RUNBOOK.md` step 8) — this does **not**
-  restrict container egress, that's a separate mechanism (see `task/` below).
+  over a briefly-opened port during initial host bootstrap (already done)
+  — this does **not** restrict container egress, that's a separate
+  mechanism (see `task/` below).
 - SSH key is looked up by name via `data "hcloud_ssh_key"` — tofu never
   manages key material; the key is uploaded to Hetzner out-of-band.
 - Docker itself and two host accounts are provisioned outside tofu, over
   SSH, by `mise run host:bootstrap` and `mise run host:harden-ssh`
-  (`mise-tasks/host/`, scripts in `mise-tasks/host/lib/`) — see
-  RUNBOOK.md step 8 for the full sequence and verification checkpoints.
-  Login and docker-capable are deliberately different accounts:
+  (`mise-tasks/host/`, scripts in `mise-tasks/host/lib/`) — a one-time
+  bootstrap already done for the current host. Login and docker-capable
+  are deliberately different accounts:
   - `user` — the SSH login account (key-only, password disabled). Not in
     the `docker` group.
   - `rbox` — in the `docker` group, runs task workloads. No password, no

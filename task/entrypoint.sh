@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Runs once per container: clone the target repo, run one headless coding
 # agent (claude or opencode, picked via $AGENT), and if it produced changes,
-# push a branch and open a PR. Never merges anything itself (PLAN.md: "Never
-# auto-merge" — existing CI plus human review own everything past this
-# point).
+# push a branch and open a PR. Never merges anything itself — existing CI
+# plus human review own everything past this point.
 set -euo pipefail
 
 : "${TARGET_REPO:?set TARGET_REPO, e.g. owner/repo}"

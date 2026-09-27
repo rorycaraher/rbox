@@ -1,4 +1,4 @@
-# Per-task headless coding-agent sandbox (PLAN.md Phase 1). Built fresh,
+# Per-task headless coding-agent sandbox. Built fresh,
 # runs exactly one task with either claude or opencode (picked via $AGENT,
 # see entrypoint.sh), then the container is discarded — the image itself
 # carries no task-specific state or credentials.
