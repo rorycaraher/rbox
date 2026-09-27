@@ -3,14 +3,14 @@
 # Idempotent. Assumes host:bootstrap already ran -- the `rbox` docker-runner
 # account must already exist.
 #
-# Gives `rbox` what it needs to drive `mise run task:run` on the VPS
-# itself: git, mise (installed the same way bootstrap-docker.sh installs
-# Docker -- an apt repo pinned to the vendor's own signing key, not a
-# curl-piped-to-shell installer), rbox's own checkout of this repo, and an
-# age keypair of its own so it can decrypt infra/secrets.enc.yaml without
-# ever touching your laptop's private key. sops/age binaries themselves
-# come from `mise install` reading this repo's own mise.toml -- one place
-# pins their versions, not two.
+# Gives `rbox` what it needs to drive `mise run task:run`/`task:run-issue`
+# on the VPS itself: git, jq, gh, mise (gh installed the same way
+# bootstrap-docker.sh installs Docker -- an apt repo pinned to the vendor's
+# own signing key, not a curl-piped-to-shell installer), rbox's own
+# checkout of this repo, and an age keypair of its own so it can decrypt
+# infra/secrets.enc.yaml without ever touching your laptop's private key.
+# sops/age binaries themselves come from `mise install` reading this
+# repo's own mise.toml -- one place pins their versions, not two.
 set -euo pipefail
 
 RUNNER_USER="rbox"
@@ -23,7 +23,18 @@ id -u "$RUNNER_USER" >/dev/null 2>&1 || {
 }
 
 apt-get update
-apt-get install -y git
+apt-get install -y git jq ca-certificates curl gnupg
+
+if ! command -v gh >/dev/null 2>&1; then
+  install -dm 755 /etc/apt/keyrings
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    >/etc/apt/sources.list.d/github-cli.list
+  apt-get update
+  apt-get install -y gh
+fi
 
 if ! command -v mise >/dev/null 2>&1; then
   install -dm 755 /etc/apt/keyrings
