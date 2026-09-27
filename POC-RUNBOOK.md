@@ -32,7 +32,9 @@ even correct; the point is proving the pipe works end to end.
 Create a new, empty, throwaway GitHub repo under your own account — public
 or private, your call. Don't point this first run at a real project.
 
-Note its `owner/repo` — you'll need it in step 5.
+Note its `owner/repo` — you'll need it in step 5. (This PoC uses
+`rorycaraher/rbox-test`, already created — substitute your own if you're
+repeating this for a fresh run.)
 
 ## Step 1 — give `rbox` its own tooling and a checkout
 
@@ -90,10 +92,17 @@ Paste the resulting token into the sops-opened editor as
 `CLAUDE_CODE_OAUTH_TOKEN: <token>`.
 
 **`GITHUB_TOKEN`** — a GitHub fine-grained personal access token, scoped to
-*only* the test repo from step 0, with **Contents** and **Pull requests**
-set to read/write and nothing else. Create it at
-github.com/settings/personal-access-tokens, then add it the same way:
-`GITHUB_TOKEN: <token>`.
+*only* the test repo from step 0. `gh` can't create this for you — GitHub
+has no API for self-service token creation, it's deliberately UI-only.
+At **github.com/settings/personal-access-tokens/new**:
+
+- Resource owner: your account (`rorycaraher`)
+- Repository access → "Only select repositories" → `rbox-test`
+- Permissions → Repository permissions → **Contents**: Read and write,
+  **Pull requests**: Read and write, everything else "No access"
+- Set an expiration (30 days is plenty for a PoC), generate
+
+Then add it the same way: `GITHUB_TOKEN: <token>`.
 
 ## Step 4 — get onto the VPS as `rbox`
 
@@ -109,7 +118,18 @@ git pull --ff-only   # picks up the .sops.yaml / secrets.enc.yaml changes from s
 Still as `rbox`, on the VPS:
 
 ```sh
-MAX_TURNS=10 mise run task:run <owner>/<test-repo> "Add a one-line note to README.md saying this repo is used to test headless agent runs."
+MAX_TURNS=10 mise run task:run rorycaraher/rbox-test "$(cat <<'EOF'
+In this repository, read AGENTS.md and follow its rules exactly.
+
+Your task: in README.md, find the line containing the comment <!-- TARGET -->, then add exactly one new line immediately below it containing this text and nothing else:
+
+rbox was here
+
+Do not modify any other part of README.md or any other file. Do not edit AGENTS.md or CLAUDE.md.
+
+If you cannot find the <!-- TARGET --> comment in README.md, stop and do not make any changes -- report that back instead of guessing.
+EOF
+)"
 ```
 
 `MAX_TURNS=10` is deliberate for this first run only — there's no
@@ -117,8 +137,14 @@ per-task budget/turn-limit control built yet (see `PLAN.md`), and a low
 cap bounds how far a confused agent can run against your subscription
 before you notice. Don't carry it forward as a default for real tasks.
 
-Keep the prompt this narrow on purpose — something with essentially one
-reasonable diff, so a glance at the PR is enough to tell if it worked.
+Note what this prompt deliberately does *not* ask for: committing,
+pushing, or opening the PR. `entrypoint.sh` already does that
+deterministically after the agent exits — if the agent also ran `git
+commit`/`push`/`gh pr create` itself (nothing in `settings.json`'s deny
+list stops it), `entrypoint.sh` would find a clean tree afterward and
+report `"no_changes"` even though a PR actually exists, breaking the
+Step 6 check below. Keep prompts for this pipeline scoped to "make the
+file changes," full stop.
 
 ## Step 6 — check the result
 
