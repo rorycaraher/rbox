@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#MISE description="One-off: run the POC-RUNBOOK.md Step 5 task against rorycaraher/rbox-test"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")"
+
+prompt="$(cat <<'EOF'
+In this repository, read AGENTS.md and follow its rules exactly.
+
+Your task: in README.md, find the line containing the comment <!-- TARGET -->, then add exactly one new line immediately below it containing this text and nothing else:
+
+rbox was here
+
+Do not modify any other part of README.md or any other file. Do not edit AGENTS.md or CLAUDE.md.
+
+If you cannot find the <!-- TARGET --> comment in README.md, stop and do not make any changes -- report that back instead of guessing.
+EOF
+)"
+
+# MAX_TURNS=10 is deliberate for this first run only -- see PLAN.md and
+# POC-RUNBOOK.md Step 5. Don't carry it forward as a default for real tasks.
+MAX_TURNS=10 exec ./run rorycaraher/rbox-test "$prompt"

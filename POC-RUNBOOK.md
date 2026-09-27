@@ -118,7 +118,14 @@ git pull --ff-only   # picks up the .sops.yaml / secrets.enc.yaml changes from s
 Still as `rbox`, on the VPS:
 
 ```sh
-MAX_TURNS=10 mise run task:run rorycaraher/rbox-test "$(cat <<'EOF'
+mise run task:run-poc
+```
+
+This just wraps `task:run` with the prompt below baked in
+(`mise-tasks/task/run-poc`), so there's no multiline heredoc to paste over
+SSH — the prompt travels with the repo via `git pull` in Step 4 instead:
+
+```
 In this repository, read AGENTS.md and follow its rules exactly.
 
 Your task: in README.md, find the line containing the comment <!-- TARGET -->, then add exactly one new line immediately below it containing this text and nothing else:
@@ -128,14 +135,13 @@ rbox was here
 Do not modify any other part of README.md or any other file. Do not edit AGENTS.md or CLAUDE.md.
 
 If you cannot find the <!-- TARGET --> comment in README.md, stop and do not make any changes -- report that back instead of guessing.
-EOF
-)"
 ```
 
-`MAX_TURNS=10` is deliberate for this first run only — there's no
-per-task budget/turn-limit control built yet (see `PLAN.md`), and a low
-cap bounds how far a confused agent can run against your subscription
-before you notice. Don't carry it forward as a default for real tasks.
+`MAX_TURNS=10` (set inside `run-poc`) is deliberate for this first run
+only — there's no per-task budget/turn-limit control built yet (see
+`PLAN.md`), and a low cap bounds how far a confused agent can run against
+your subscription before you notice. Don't carry it forward as a default
+for real tasks — `task:run` itself takes no `MAX_TURNS` default.
 
 Note what this prompt deliberately does *not* ask for: committing,
 pushing, or opening the PR. `entrypoint.sh` already does that
