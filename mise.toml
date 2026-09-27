@@ -8,3 +8,10 @@ age = "latest"
 tflint = "latest"
 gitleaks = "latest"
 pre-commit = "latest"
+
+[hooks]
+# Keeps the local git pre-commit hook installed/up to date every time
+# tools are (re)installed, so `pre-commit run` isn't only something CI
+# does after the fact -- `mise install` is the one command everyone
+# already runs to get pinned tool versions.
+postinstall = "pre-commit install"

@@ -14,6 +14,13 @@ All commands run via `mise run <task>` (never `tofu`/`sops`/`docker
 compose` directly — see `mise-tasks/`). No test suite; this is infra
 config, not application code.
 
+Run `mise install` once after cloning: it installs the pinned tool
+versions (opentofu, sops, tflint, gitleaks, pre-commit, ...) and, via a
+`postinstall` hook in `mise.toml`, also installs the local git
+pre-commit hook (`pre-commit install`) so the same checks CI runs
+(`tofu fmt`/`validate`, `tflint`, `gitleaks`, the SOPS checks) run on
+every commit, not just after pushing.
+
 ## Tasks
 
 Run `mise tasks` to list these with descriptions straight from the
