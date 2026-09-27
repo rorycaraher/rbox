@@ -1,0 +1,47 @@
+# One task = one `docker compose -p <task id> up`, then `down -v` tears the
+# whole thing (container, both networks) back out. See
+# ../mise-tasks/task/run, and PLAN.md Phase 1 ("Docker-per-task").
+#
+# Network shape is how egress gets locked down without touching host
+# iptables: `internal` has no route to the internet at all, so `task` (the
+# only thing attached to it) can only ever reach `proxy`, which is also on
+# `egress` (a normal bridge with internet access) and enforces the
+# domain allowlist in proxy/allowed_domains.txt. There is no path from
+# `task` to the internet that doesn't go through that allowlist.
+services:
+  proxy:
+    build: ./proxy
+    networks:
+      - internal
+      - egress
+    restart: "no"
+
+  task:
+    build: .
+    depends_on:
+      - proxy
+    networks:
+      - internal
+    environment:
+      - TARGET_REPO
+      - TASK_PROMPT
+      - PR_TITLE
+      - BASE_BRANCH
+      - MAX_TURNS
+      - GITHUB_TOKEN
+      - ANTHROPIC_API_KEY
+      - CLAUDE_CODE_OAUTH_TOKEN
+      - GIT_AUTHOR_NAME
+      - GIT_AUTHOR_EMAIL
+      - TASK_ID
+      - HTTP_PROXY=http://proxy:3128
+      - HTTPS_PROXY=http://proxy:3128
+      - NO_PROXY=proxy
+    volumes:
+      - ${RBOX_OUTPUT_HOST_DIR}:/home/agent/output
+    restart: "no"
+
+networks:
+  internal:
+    internal: true
+  egress:

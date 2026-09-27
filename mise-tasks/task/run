@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#MISE description="Run one Docker-per-task Claude Code session: clone <repo>, run the prompt headless, open a PR if it produced changes"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../../task"
+
+if [[ $# -lt 2 ]]; then
+  echo "usage: mise run task:run <owner/repo> <prompt> [base_branch]" >&2
+  exit 1
+fi
+
+target_repo="$1"
+task_prompt="$2"
+base_branch="${3:-}"
+
+task_id="$(date +%Y%m%d%H%M%S)-$$"
+out_dir="$(pwd)/runs/${task_id}"
+mkdir -p "$out_dir"
+
+echo "task ${task_id}: ${target_repo} <- ${task_prompt@Q}" >&2
+echo "output: ${out_dir}" >&2
+
+export TARGET_REPO="$target_repo"
+export TASK_PROMPT="$task_prompt"
+export BASE_BRANCH="$base_branch"
+export TASK_ID="$task_id"
+export RBOX_OUTPUT_HOST_DIR="$out_dir"
+
+project="rbox-task-${task_id}"
+cleanup() { docker compose -p "$project" -f compose.yml down -v --remove-orphans >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+# GITHUB_TOKEN / ANTHROPIC_API_KEY decrypted into this process's env only,
+# same pattern as tofu:apply and ssh — never typed or persisted as
+# plaintext. See ../../infra/secrets.yaml.example.
+cmd="docker compose -p $(printf '%q' "$project") -f compose.yml up --build --abort-on-container-exit --exit-code-from task"
+status=0
+sops exec-env ../infra/secrets.enc.yaml "$cmd" || status=$?
+
+if [[ -f "$out_dir/pr_url.txt" ]]; then
+  echo "PR: $(cat "$out_dir/pr_url.txt")" >&2
+elif [[ -f "$out_dir/summary.json" ]]; then
+  echo "result: $(cat "$out_dir/summary.json")" >&2
+fi
+
+exit "$status"

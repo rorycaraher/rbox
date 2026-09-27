@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Loaded via CLAUDE_CONFIG_DIR, outside the cloned repo, so the task can't override its own restrictions. `deny` entries are enforced unconditionally, unlike `allow` — this container also runs with --dangerously-skip-permissions, which is exactly why `deny` (a hard stop) rather than `allow` (a prompt that flag already skips) is the layer doing real work here. See PLAN.md Phase 1.",
+  "permissions": {
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(su:*)",
+      "Bash(doas:*)",
+      "Bash(curl * | sh*)",
+      "Bash(curl * | bash*)",
+      "Bash(wget * | sh*)",
+      "Bash(wget * | bash*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git config --global*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(chmod -R 777*)",
+      "Bash(:(){ :|:& };:*)",
+      "Read(/home/agent/.claude-rbox/**)",
+      "Read(**/.ssh/**)",
+      "Read(**/.aws/**)",
+      "Read(**/*.pem)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)"
+    ]
+  }
+}

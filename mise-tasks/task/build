@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Build the task and proxy images (no secrets, no run)"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../../task"
+exec docker compose -f compose.yml build

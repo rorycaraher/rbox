@@ -1,0 +1,23 @@
+# One domain (or .suffix wildcard) per line, matched against the TLS SNI
+# for HTTPS and the Host header for plain HTTP. Edit to add whatever a
+# given repo's install/build actually needs (PLAN.md: "package registry" is
+# deliberately generic — this is the concrete list). Keep it as narrow as
+# the tasks you're actually running allow.
+
+# Anthropic API (claude -p itself)
+.anthropic.com
+
+# GitHub: clone/push over HTTPS, `gh pr create`, release/archive downloads
+github.com
+api.github.com
+codeload.github.com
+.githubusercontent.com
+
+# Common package registries
+registry.npmjs.org
+pypi.org
+files.pythonhosted.org
+proxy.golang.org
+sum.golang.org
+crates.io
+static.crates.io
