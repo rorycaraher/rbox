@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#MISE description="Run one Docker-per-task Claude Code session using a GitHub issue's title+body as the prompt"
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")"
+
+if [[ $# -lt 2 ]]; then
+  echo "usage: mise run task:run-issue <owner/repo> <issue_number> [base_branch]" >&2
+  exit 1
+fi
+
+for bin in gh jq; do
+  command -v "$bin" >/dev/null 2>&1 || {
+    echo "task:run-issue needs '$bin' on this host (not currently installed by any mise-tasks/host/* script)" >&2
+    exit 1
+  }
+done
+
+target_repo="$1"
+issue_number="$2"
+base_branch="${3:-}"
+
+echo "fetching ${target_repo}#${issue_number}..." >&2
+
+# GITHUB_TOKEN decrypted into this one command's env only, same pattern as
+# task:run's own docker-compose invocation -- gh reads it as GH_TOKEN/
+# GITHUB_TOKEN for non-interactive auth.
+issue_cmd="gh issue view $(printf '%q' "$issue_number") --repo $(printf '%q' "$target_repo") --json title,body,url"
+issue_json="$(sops exec-env ../../infra/secrets.enc.yaml "$issue_cmd")"
+
+issue_title="$(jq -r '.title' <<<"$issue_json")"
+issue_body="$(jq -r '.body' <<<"$issue_json")"
+issue_url="$(jq -r '.url' <<<"$issue_json")"
+
+task_prompt="$(cat <<EOF
+Resolve GitHub issue ${target_repo}#${issue_number}: ${issue_title}
+
+${issue_body}
+
+Issue: ${issue_url}
+EOF
+)"
+
+# Keyed off the issue rather than a bare timestamp -- see PLAN.md's "Future
+# ideas" on meaningful task/branch names. The time suffix keeps re-runs on
+# the same issue from colliding.
+export TASK_ID="gh-${issue_number}-$(date +%H%M%S)"
+export PR_TITLE="Fixes #${issue_number}: ${issue_title}"
+export SOURCE_ISSUE_NUMBER="$issue_number"
+
+exec ./run "$target_repo" "$task_prompt" "$base_branch"

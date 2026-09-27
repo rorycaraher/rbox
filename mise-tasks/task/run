@@ -12,9 +12,11 @@ target_repo="$1"
 task_prompt="$2"
 base_branch="${3:-}"
 
-# POC-scoped: a plain timestamp. See PLAN.md's "Future ideas" for deriving
-# this from a Jira ticket/GitHub issue instead once there's one to key off.
-task_id="$(date +%Y%m%d%H%M%S)"
+# A caller (e.g. task:run-issue) may pre-derive a more meaningful id and
+# export TASK_ID before invoking this script; otherwise fall back to a
+# plain timestamp. See PLAN.md's "Future ideas" on keying this off a
+# ticket/issue instead.
+task_id="${TASK_ID:-$(date +%Y%m%d%H%M%S)}"
 out_dir="$(pwd)/runs/${task_id}"
 mkdir -p "$out_dir"
 # The task container's `agent` user (uid 1000, baked into the image) almost

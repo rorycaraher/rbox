@@ -27,6 +27,7 @@ services:
       - TASK_PROMPT
       - PR_TITLE
       - BASE_BRANCH
+      - SOURCE_ISSUE_NUMBER
       - AGENT
       - MAX_TURNS
       - GITHUB_TOKEN

@@ -122,6 +122,11 @@ been reviewed by a human yet — treat it like any other proposed change.
 Task ID: \`${task_id}\`
 EOF
 )"
+if [[ -n "${SOURCE_ISSUE_NUMBER:-}" ]]; then
+  pr_body="${pr_body}
+
+Closes #${SOURCE_ISSUE_NUMBER}"
+fi
 
 gh_args=(pr create --repo "$TARGET_REPO" --title "$pr_title" --body "$pr_body" --head "$branch")
 if [[ -n "$base_branch" ]]; then
@@ -132,3 +137,8 @@ pr_url="$(gh "${gh_args[@]}")"
 log "opened $pr_url"
 write_summary "pr_opened"
 echo "$pr_url" > "$out_dir/pr_url.txt"
+
+if [[ -n "${SOURCE_ISSUE_NUMBER:-}" ]]; then
+  gh issue comment "$SOURCE_ISSUE_NUMBER" --repo "$TARGET_REPO" --body "Opened $pr_url" \
+    || log "failed to comment back on issue #${SOURCE_ISSUE_NUMBER} (PR is still up)"
+fi
