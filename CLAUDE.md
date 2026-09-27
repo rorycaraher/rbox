@@ -31,7 +31,9 @@ mise run tofu:apply                                        # human-run only
 mise run tofu:bootstrap                                    # one-time: temp-open SSH, apply, see RUNBOOK.md step 8
 mise run tofu:fmt
 mise run secrets:encrypt                                   # infra/secrets.yaml -> secrets.enc.yaml, removes plaintext
-mise run ssh                                                # SSH to the task host over Tailscale
+mise run host:bootstrap                                    # one-time: install Docker + create user/rbox accounts, see RUNBOOK.md step 8
+mise run host:harden-ssh                                   # one-time: disable root/password SSH login, see RUNBOOK.md step 8
+mise run ssh                                                # SSH to the task host over Tailscale, as `user`
 mise run task:build                                         # build task+proxy images, no secrets, no run
 mise run task:run <owner/repo> "<prompt>" [base_branch]     # run one headless task
 ```
@@ -54,6 +56,13 @@ There is no test suite; this is infra config, not application code.
 - **Never auto-merge, and never run `mise run task:run`, `git push`, or
   `gh pr` commands yourself.** Task runs and their resulting PRs are
   triggered manually by a human; nothing in this repo self-triggers.
+- **Never run `mise run host:bootstrap` or `mise run host:harden-ssh`
+  yourself.** Both mutate the live task host over SSH (installing
+  packages, creating the `user`/`rbox` accounts, and — for `harden-ssh` —
+  disabling root/password SSH login). Same category as `tofu apply`: a
+  human runs these by hand, watching the output, with a second terminal
+  open to verify before the next step. Stop at the code/script change and
+  say it's ready to run.
 - **Never commit `infra/secrets.yaml`** (plaintext staging file, gitignored)
   — only `infra/secrets.enc.yaml` (SOPS ciphertext) is meant to be committed.
   If asked to add a secret, edit via `sops infra/secrets.enc.yaml` (opens
@@ -72,6 +81,24 @@ There is no test suite; this is infra config, not application code.
   restrict container egress, that's a separate mechanism (see `task/` below).
 - SSH key is looked up by name via `data "hcloud_ssh_key"` — tofu never
   manages key material; the key is uploaded to Hetzner out-of-band.
+- Docker itself and two host accounts are provisioned outside tofu, over
+  SSH, by `mise run host:bootstrap` and `mise run host:harden-ssh`
+  (`mise-tasks/host/`, scripts in `mise-tasks/host/lib/`) — see
+  RUNBOOK.md step 8 for the full sequence and verification checkpoints.
+  Login and docker-capable are deliberately different accounts:
+  - `user` — the SSH login account (key-only, password disabled). Not in
+    the `docker` group.
+  - `rbox` — in the `docker` group, runs task workloads. No password, no
+    SSH key, excluded from sshd's `AllowUsers` — reached only via
+    `sudo -u rbox` from a `user` session, never logged into directly.
+    `user`'s sudo grant is scoped to `(rbox)`, not `(ALL)`/root.
+
+  Being in the `docker` group is host-root-equivalent in practice
+  (unrestricted bind mounts), so this split narrows *operator-mistake*
+  blast radius (a typo'd `sudo <cmd>` lands as rbox's uid, not root's) —
+  it is not a sandbox against someone who already holds the SSH key. The
+  real containment for task containers is the `task/` network/proxy setup
+  below.
 - State is remote: Cloudflare R2 via the S3-compatible backend
   (`versions.tf`), deliberately on a different provider than the compute.
   `versions.tf` has two placeholders (`bucket`, account-ID in the R2

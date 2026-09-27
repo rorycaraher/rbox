@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Install Docker and create the 'user' (SSH login) / 'rbox' (docker runner) accounts on the task host (idempotent; connects as root over Tailscale). See RUNBOOK.md step 8."
+set -euo pipefail
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$script_dir/../../infra"
+
+remote_script="$script_dir/lib/bootstrap-docker.sh"
+cmd='ssh -i ~/.ssh/rbox-task-host_ed25519 "root@$RBOX_TAILSCALE_IP" bash -s'
+
+echo "Installing Docker and creating the user/rbox accounts on the task host..." >&2
+exec sops exec-env secrets.enc.yaml "$cmd" <"$remote_script"

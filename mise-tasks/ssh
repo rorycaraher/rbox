@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-#MISE description="SSH into the task host over Tailscale, with the Tailscale IP decrypted from secrets via sops exec-env"
+#MISE description="SSH into the task host over Tailscale as the 'user' login account (docker/task work happens as 'rbox' via sudo -u rbox), with the Tailscale IP decrypted from secrets via sops exec-env"
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../infra"
 
 args=""
 for a in "$@"; do args+=" $(printf '%q' "$a")"; done
-cmd='ssh -i ~/.ssh/rbox-task-host_ed25519 "root@$RBOX_TAILSCALE_IP"'"${args}"
+cmd='ssh -i ~/.ssh/rbox-task-host_ed25519 "user@$RBOX_TAILSCALE_IP"'"${args}"
 exec sops exec-env secrets.enc.yaml "$cmd"

@@ -42,11 +42,18 @@ auto-merges or auto-triggers itself.
 1. Docker installed on wherever this runs (the task host, or your own
    machine for local testing/iteration — see below). Not provisioned by
    tofu — `infra/variables.tf` says as much (`image` is a bare Ubuntu image).
-   On the task host, one-time, over `mise run ssh`:
+   On the task host, this is one-time, from your own machine (not over
+   `mise run ssh` — see `infra/RUNBOOK.md` step 8):
 
    ```sh
-   curl -fsSL https://get.docker.com | sh
+   mise run host:bootstrap
    ```
+
+   This installs Docker and creates two accounts on the host: `user` (who
+   you SSH in as) and `rbox` (in the `docker` group, reached only via
+   `sudo -u rbox` from a `user` session — never SSH'd into directly). Any
+   `docker`/`docker compose` command below, run on the host itself rather
+   than your own machine, needs that `sudo -u rbox` prefix.
 
 2. `claude -p` auth: set **one** of `ANTHROPIC_API_KEY` or
    `CLAUDE_CODE_OAUTH_TOKEN` (`entrypoint.sh` requires at least one, and

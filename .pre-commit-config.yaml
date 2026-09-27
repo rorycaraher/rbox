@@ -34,3 +34,8 @@ repos:
         entry: scripts/check-sops-encrypted.sh
         language: script
         files: ^infra/secrets\.enc\.yaml$
+      - id: sops-metadata-changed
+        name: verify SOPS metadata changed alongside secrets content
+        entry: scripts/check-sops-metadata-changed.sh
+        language: script
+        files: ^infra/secrets\.enc\.yaml$
