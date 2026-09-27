@@ -19,7 +19,8 @@ base_branch="${3:-}"
 # project name.
 prompt_slug="$(printf '%s' "$task_prompt" \
   | tr '[:upper:]' '[:lower:]' \
-  | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+  | tr -s '[:space:]' '-' \
+  | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//' \
   | cut -c1-40)"
 prompt_slug="${prompt_slug%-}"
 task_id="${prompt_slug:-task}-$(date +%Y%m%d-%H%M%S)"
